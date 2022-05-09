@@ -1,0 +1,12 @@
+# Goal
+float64 lat
+float64 lon
+float64 speed
+---
+# Result
+bool arrived
+---
+# Feedback
+float64 lat
+float64 lon
+float64 speed
