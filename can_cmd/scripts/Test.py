@@ -20,9 +20,9 @@ conf = AttrDict({
         {'topic':'/novatel/oem7/bestpos', 'type': BESTPOS, 'name': 'position'},
         {'topic':'/novatel/oem7/corrimu', 'type': CORRIMU, 'name': 'imu'},
         {'topic':'/novatel/oem7/bestvel', 'type': BESTVEL, 'name': 'velocity'}]
-        # {'topic':'/can_feedback/vehicle_speed', 'type': VEHICLESPEED, 'name': 'cur_speed'}
 })
 
+# change parameters here
 param = AttrDict({'max_speed': 8, 'max_accel': 1, 'destination': (25.230071, 126.842450),
                   'longitudinal':{'p':1.0, 'i': 0.5, 'd':0.2},
                   'dt': 0.02
@@ -38,8 +38,9 @@ class Test:
 
         self.subscribers = [rospy.Subscriber(e.topic, e.type, self.callbacks[e.topic]) for e in conf.subscribers]
 
+        # imu rate is needed to calculate acceleration
+        # accel [m/s/sample] => accel*rate = [m/s/sample * sample/s]
         self.imu_rate = 100
-        self.pub_rate = 50
 
         self.param = param
 
@@ -49,11 +50,19 @@ class Test:
 
         self.lon_controller = PIDLongitudinalController(self.param)
         self.can = CAN()
+        # init vehicle control with gear changed to DRIVE
         self.can.change_gear(NEUTRAL)
         self.can.change_gear(DRIVE)
 
+    # calculate target speed with respect to distance
     def target_speed(self):
-        dist = distance.distance(self.destination, (lat, lon)) * 1000
+        # distance between current position and starting position
+        # dist = distance.distance(self.start_pos, (lat, lon)) * 1000
+        # if dist < self.max_speed**2/(2*self.max_accel):
+        #   ret = sqrt(2*self.max_accel*dist)
+
+        # distance between current position and destination
+        dist = distance.distance(self.destination, (lat, lon)) * 1000 # km to m
         if dist < self.max_speed **2/(2*self.max_accel):
             ret = sqrt(2*self.max_accel*dist)
         else:
@@ -61,12 +70,15 @@ class Test:
         return ret
 
     def run_step(self):
+
         cmd_vel = self.target_speed()
         cmd_acc = self.lon_controller(cur_speed, acc_x, cmd_vel)
 
+        # brake and accel must not pushed in the same time
+        # assume relations between pedal pressure and acceleration is linear
         if cmd_acc > 0:
             self.can.driving_cmd_dict["Brake_CMD"] = 0
-            self.can.driving_cmd_dict["Accel_CMD"] = cmd_acc * 80 + 650
+            self.can.driving_cmd_dict["Accel_CMD"] = cmd_acc * 100 + 650
         elif cmd_acc < -0.2:
             self.can.driving_cmd_dict["Accel_CMD"] = 0
             self.can.driving_cmd_dict["Brake_CMD"] = -cmd_acc * 200
@@ -75,7 +87,7 @@ class Test:
             self.can.driving_cmd_dict["Brake_CMD"] = 0
         
         self.can.send_control()
-        self.can.get_feedback()
+        self.can.get_feedback() # needed when publishing vehicle feedback
 
     
     def pos_callback(self, data):
@@ -94,9 +106,9 @@ class Test:
 if __name__ == '__main__':
     test = Test(conf, param)
     rate = rospy.Rate(50)
+    # CAN messages must be sent in constant rate
     while rospy.is_shutdown():
+        rospy.loginfo("lat %f, lon %f", lat, lon)
         test.run_step()
         rate.sleep()
-
-
     

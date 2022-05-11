@@ -12,14 +12,20 @@ global gear, acc
 class Vehicle:
     def __init__(self):
         self.can = CAN()
-        rospy.init_node('vehicle', anonymous=True)
+        rospy.init_node('/can_cmd/vehicle', anonymous=True)
 
         self.can.change_gear(NEUTRAL)
         self.can.change_gear(DRIVE)
 
         rospy.Subscriber('/can_cmd/control', Control, self.callback)
     
+    # subscribe to Control message then send CAN messages accordingly
     def callback(self, data):
+        if data.override:
+            self.can.control_cmd_dict["Override_Off"] = 0
+        else:
+            self.can.control_cmd_dict["Override_Off"] = 1
+            
         if data.gear != self.info_1_dict["Gear_Shift_Feedback"]:
             self.can.change_gear(NEUTRAL)
             self.can.change_gear(data.gear)

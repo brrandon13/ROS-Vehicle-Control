@@ -2,11 +2,11 @@ import cantools
 import can
 import threading
 from pygame import time
-from geopy import distance
 
 
-DRIVE =  5
-PARKING = 0
+NEUTRAL = 0
+PARKING = 7
+DRIVE = 5
 
 CONTROL_CMD = 1
 DRIVING_CMD = 2
