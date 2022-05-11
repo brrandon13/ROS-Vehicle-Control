@@ -4,6 +4,8 @@ import actionlib
 from collections import deque
 from can_cmd.msg import MoveVehicleAction, MoveVehicleGoal
 
+PARKING = 7
+
 class PathPlanner:
     def __init__(self):
         self.path = deque()
@@ -14,7 +16,7 @@ class PathPlanner:
 
     def init_path(self):
         # self.path.append(MoveVehicleGoal)
-        # MoveVehicleGoal: lat, lon, speed
+        # MoveVehicleGoal: lat, lon, speed, gear
         pass
 
     def run(self):
@@ -23,7 +25,11 @@ class PathPlanner:
             rospy.loginfo('sending goal ...')
             self.client.send_goal(self.path.popleft())
             self.client.wait_for_result()
-
+        else:
+            parking = MoveVehicleGoal()
+            parking.gear = PARKING
+            self.client_send_goal()
+            
 if __name__ == "__main__":
     try:
         pp = PathPlanner()

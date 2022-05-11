@@ -36,7 +36,7 @@ class CAN:
         self.control_cmd_msg = self.db.get_message_by_name('Control_CMD') 
         self.driving_cmd_msg = self.db.get_message_by_name('Driving_CMD')
         self.control_cmd_dict = {'Override_Off':0,'Alive_Count':0,'Angular_Speed_CMD':30}  
-        self.driving_cmd_dict = {'Accel_CMD':650,'Brake_CMD':0,'Steering_CMD':0,'Gear_Shift_CMD':5, 'Reserved':0}     
+        self.driving_cmd_dict = {'Accel_CMD':650,'Brake_CMD':0,'Steering_CMD':0,'Gear_Shift_CMD':5}     
 
         self.destination = destination
 
@@ -71,17 +71,12 @@ class CAN:
 
             self.get_feedback()
             
-            if self.info_2_dict["Vehicle_Speed"] == 0 and self.driving_cmd_dict["Brake_ACT_Feedback"] >= 20000:
+            if self.info_2_dict["Vehicle_Speed"] == 0 and self.info_1_dict["Brake_ACT_Feedback"] >= 15000:
                 self.driving_cmd_dict["Gear_Shift_CMD"] = gear
             else:
-                self.driving_cmd_dict["Brake_CMD"] += 1000
+                self.driving_cmd_dict["Brake_CMD"] = max(self.driving_cmd_dict["Brake_CMD"]+100, 13000)
 
             self.send_control()
-        print("done")
-
-    @staticmethod
-    def _scaler(old_value, old_min, old_max, new_min, new_max):
-        return ((old_value - old_min) / (old_max - old_min) ) * (new_max - new_min) + new_min
 
     def get_vehicle_info_1(self):
         try:

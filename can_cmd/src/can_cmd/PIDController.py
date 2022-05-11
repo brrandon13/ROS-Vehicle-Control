@@ -7,9 +7,9 @@ class PIDLongitudinalController:
     def __init__(self, args) -> None:
         self.max_speed = args.max_speed
         self.max_accel = args.max_accel
-        self._p = args.p
-        self._i = args.i
-        self._d = args.d
+        self._p = args.longitudinal.p
+        self._i = args.longitudinal.i
+        self._d = args.longitudinal.d
         self._dt = args.dt
     
         self._buffer = deque(maxlen=10)

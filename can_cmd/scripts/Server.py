@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 import rospy
 import roslib
 roslib.load_manifest('can_cmd')
@@ -7,7 +7,7 @@ import actionlib
 from geopy import distance
 from attrdict import AttrDict
 
-from PIDController import PIDLongitudinalController
+from can_cmd.PIDController import PIDLongitudinalController
 
 from novatel_oem7_msgs.msg import BESTPOS, CORRIMU, BESTVEL
 from can_cmd.msg import MoveVehicleAction, MoveVehicleResult
@@ -17,16 +17,18 @@ from can_cmd_msgs.msg import Control, Gear
 conf = AttrDict({
     'subscribers':[
         {'topic':'/novatel/oem7/bestpos', 'type': BESTPOS, 'name': 'position'},
-        {'topic':'/novatel/oem7/corrimu', 'type': CORRIMU, 'name': 'imu'}
+        {'topic':'/novatel/oem7/corrimu', 'type': CORRIMU, 'name': 'imu'},
+        {'topic':'/novatel/oem7/bestvel', 'type': BESTVEL, 'name': 'velocity'}
         # {'topic':'/can_feedback/vehicle_speed', 'type': VEHICLESPEED, 'name': 'cur_speed'}
     ],
     'publishers':[
-        {'topic':'control', 'type': Control, 'name': 'control'}
+        {'topic':'/can_cmd/control', 'type': Control, 'name': 'control'}
     ]
 })
 
 
 global lat, lon, acc_x, cur_vel
+DRIVE = 5
 
 class Controller:
     def __init__(self, conf=None):
@@ -67,12 +69,11 @@ class Controller:
     def publish_controls(self, msg):
         self.publishers['control'](msg)
 
-    def run_step(self, speed):
+    def run_step(self, goal):
         ct = Control()
         ct.override = True
-        ct.gear = Gear.DRIVE
-
-        cmd_vel = speed
+        ct.gear = goal.gear
+        cmd_vel = goal.speed
         ct.accel_x = self.lat_controller.run_step(acc_x, cur_vel, cmd_vel)
         # ct.theta = self.lon_controller.run_step(*args)
         self.publish_controls(ct)
@@ -88,19 +89,23 @@ class VehicleControlServer:
                                                    MoveVehicleAction, 
                                                    execute_cb = self.execute, 
                                                    auto_start=False)
-        self.controller = Controller()
-        rospy.spin()
+        self.controller = Controller(conf)
+        
 
     def execute(self, goal):
         result = MoveVehicleResult()
         rate = rospy.Rate(50) # 
-        while abs(goal.lat - lat) < 0.000005 and abs(goal.lon - lon) < 0.000005:
-            self.controller.run_step(goal.speed)
-            rate.sleep()
-        rospy.loginfo(f'arrived at {goal.lat} {goal.lon}')
+        if goal.gear != DRIVE: # change gear to parking
+            self.controller.run_step(goal)
+        else:
+            while abs(goal.lat - lat) < 0.000005 and abs(goal.lon - lon) < 0.000005:
+                self.controller.run_step(goal)
+                rate.sleep()
+            rospy.loginfo("arrived at %f %f", goal.lat, goal.lon)
         result.arrived = True
         self.server.set_succeeded(result)
 
 
 if __name__ == '__main__':
     s = VehicleControlServer('vehicle_control')
+    rospy.spin()
