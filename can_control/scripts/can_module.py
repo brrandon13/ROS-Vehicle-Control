@@ -1,6 +1,5 @@
 import cantools
 import can
-import threading
 from pygame import time
 from time import sleep
 

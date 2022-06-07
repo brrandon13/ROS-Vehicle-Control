@@ -63,9 +63,9 @@ class Controller:
 
         self.lon_controller = PIDLongitudinalController(param)
         #self.lat_controller = LateralController(param)
-        print("bye")
         self.can = CAN()
-        print("hi")
+
+        """ 시작점, 끝점 """
         self.start_pos = (35.22510137, 126.83975056)
         self.target_pos = (35.22545213, 126.83870505)
 
