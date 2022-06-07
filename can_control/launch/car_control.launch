@@ -1,0 +1,6 @@
+<launch>
+  
+  <node pkg="yolo_ros" type="detect_final.py" name="pub_yolo" output="screen"/>
+  <node pkg="can_control" type="yolo_control.py" name="car_controller" output="screen"/>
+
+</launch>
